@@ -19,6 +19,12 @@
 sudo bash deploy-xray-reality.sh
 ```
 
+也可以直接从 GitHub 拉取并执行：
+
+```bash
+sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/Quan-Xi/xray-reality-deploy/main/deploy-xray-reality.sh)"
+```
+
 脚本会提示选择部署模式：
 
 ```text
@@ -44,10 +50,22 @@ sudo bash deploy-xray-reality.sh
 sudo DEPLOY_MODE=direct PUBLIC_HOST=你的域名或服务器IP bash deploy-xray-reality.sh
 ```
 
+直接从 GitHub 执行直连部署：
+
+```bash
+sudo DEPLOY_MODE=direct PUBLIC_HOST=你的域名或服务器IP bash -c "$(curl -fsSL https://raw.githubusercontent.com/Quan-Xi/xray-reality-deploy/main/deploy-xray-reality.sh)"
+```
+
 非交互 Nginx 分流部署：
 
 ```bash
 sudo DEPLOY_MODE=nginx PUBLIC_HOST=proxy.example.com SNI=www.microsoft.com DEST=www.microsoft.com:443 bash deploy-xray-reality.sh
+```
+
+直接从 GitHub 执行 Nginx 分流部署：
+
+```bash
+sudo DEPLOY_MODE=nginx PUBLIC_HOST=proxy.example.com SNI=www.microsoft.com DEST=www.microsoft.com:443 bash -c "$(curl -fsSL https://raw.githubusercontent.com/Quan-Xi/xray-reality-deploy/main/deploy-xray-reality.sh)"
 ```
 
 固定其他 Xray 版本：
