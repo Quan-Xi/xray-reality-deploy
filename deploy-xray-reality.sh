@@ -7,9 +7,13 @@ set -Eeuo pipefail
 #   sudo bash deploy-xray-reality.sh
 #
 # Optional environment overrides:
-#   PORT=443 SNI=www.microsoft.com DEST=www.microsoft.com:443 bash deploy-xray-reality.sh
+#   PORT=10443 LISTEN=127.0.0.1 PUBLIC_HOST=proxy.example.com PUBLIC_PORT=443 \
+#     SNI=www.microsoft.com DEST=www.microsoft.com:443 bash deploy-xray-reality.sh
 
-PORT="${PORT:-443}"
+PORT="${PORT:-10443}"
+LISTEN="${LISTEN:-127.0.0.1}"
+PUBLIC_HOST="${PUBLIC_HOST:-}"
+PUBLIC_PORT="${PUBLIC_PORT:-443}"
 SNI="${SNI:-www.microsoft.com}"
 DEST="${DEST:-${SNI}:443}"
 SPIDERX="${SPIDERX:-/}"
@@ -82,8 +86,8 @@ write_config() {
 
   local keypair
   keypair="$(xray x25519)"
-  private_key="$(printf '%s\n' "$keypair" | awk -F': ' '/Private key/ {print $2}')"
-  public_key="$(printf '%s\n' "$keypair" | awk -F': ' '/Public key/ {print $2}')"
+  private_key="$(printf '%s\n' "$keypair" | awk -F': ' '/^Private[ ]?[Kk]ey/ {print $2}')"
+  public_key="$(printf '%s\n' "$keypair" | awk -F': ' '/^(Public[ ]?[Kk]ey|Password \\(PublicKey\\))/ {print $2}')"
 
   if [[ -z "$private_key" || -z "$public_key" ]]; then
     echo "error: failed to generate REALITY x25519 keypair." >&2
@@ -99,7 +103,7 @@ write_config() {
   "inbounds": [
     {
       "tag": "vless-reality-vision",
-      "listen": "0.0.0.0",
+      "listen": "${LISTEN}",
       "port": ${PORT},
       "protocol": "vless",
       "settings": {
@@ -156,15 +160,19 @@ JSON
   systemctl enable --now xray
   systemctl restart xray
 
-  local server_ip encoded_name encoded_spiderx share_link
-  server_ip="$(curl -fsS4 --max-time 8 https://api.ipify.org || hostname -I | awk '{print $1}')"
+  local public_host encoded_name encoded_spiderx share_link
+  if [[ -n "$PUBLIC_HOST" ]]; then
+    public_host="$PUBLIC_HOST"
+  else
+    public_host="$(curl -fsS4 --max-time 8 https://api.ipify.org || hostname -I | awk '{print $1}')"
+  fi
   encoded_name="$(printf '%s' "$CLIENT_NAME" | sed 's/ /%20/g')"
   if [[ "$SPIDERX" == "/" ]]; then
     encoded_spiderx="%2F"
   else
     encoded_spiderx="$SPIDERX"
   fi
-  share_link="vless://${uuid}@${server_ip}:${PORT}?type=tcp&security=reality&encryption=none&flow=xtls-rprx-vision&sni=${SNI}&fp=chrome&pbk=${public_key}&sid=${short_id}&spx=${encoded_spiderx}#${encoded_name}"
+  share_link="vless://${uuid}@${public_host}:${PUBLIC_PORT}?type=tcp&security=reality&encryption=none&flow=xtls-rprx-vision&sni=${SNI}&fp=chrome&pbk=${public_key}&sid=${short_id}&spx=${encoded_spiderx}#${encoded_name}"
 
   cat <<EOF
 
@@ -175,8 +183,8 @@ ${share_link}
 
 Manual settings:
   Type: VLESS
-  Address: ${server_ip}
-  Port: ${PORT}
+  Address: ${public_host}
+  Port: ${PUBLIC_PORT}
   UUID: ${uuid}
   Encryption: none
   Flow: xtls-rprx-vision
@@ -191,6 +199,10 @@ Manual settings:
 Server files:
   Config: ${CONFIG_FILE}
   Service: xray
+
+Server listen:
+  Listen: ${LISTEN}
+  Local port: ${PORT}
 
 Useful commands:
   systemctl status xray

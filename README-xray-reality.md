@@ -6,7 +6,8 @@
 - VLESS
 - REALITY
 - Vision flow：`xtls-rprx-vision`
-- 单端口 TCP，默认 `443`
+- 默认本机监听 `127.0.0.1:10443`
+- 可通过 `PUBLIC_HOST` / `PUBLIC_PORT` 输出公网连接地址，适合前面有 Nginx 443 SNI 分流的场景
 - 不创建 HTTP/SOCKS 公网入口
 - 不配置 access log 文件
 - 默认固定安装 Xray-core `v26.3.27`
@@ -19,10 +20,16 @@
 sudo bash deploy-xray-reality.sh
 ```
 
-自定义端口或伪装站点：
+默认配置适合这种部署结构：
+
+```text
+proxy.example.com:443 -> Nginx SNI 分流 -> 127.0.0.1:10443 -> Xray REALITY
+```
+
+自定义本机监听端口、公网地址或伪装站点：
 
 ```bash
-sudo PORT=443 SNI=www.microsoft.com DEST=www.microsoft.com:443 bash deploy-xray-reality.sh
+sudo PORT=10443 LISTEN=127.0.0.1 PUBLIC_HOST=proxy.example.com PUBLIC_PORT=443 SNI=www.microsoft.com DEST=www.microsoft.com:443 bash deploy-xray-reality.sh
 ```
 
 固定其他 Xray 版本：
@@ -41,8 +48,16 @@ sudo XRAY_VERSION=v26.3.27 bash deploy-xray-reality.sh
 - 传输：TCP
 - TLS/Security：REALITY
 - Fingerprint：Chrome
+- 地址：脚本输出的 `Address`，或运行时传入的 `PUBLIC_HOST`
+- 端口：脚本输出的 `Port`，或运行时传入的 `PUBLIC_PORT`
 
 `SNI`、`PublicKey`、`ShortID`、`UUID` 必须和脚本输出完全一致。
+
+如果不使用 Nginx 分流、想让 Xray 直接监听公网端口，可以显式覆盖：
+
+```bash
+sudo PORT=443 LISTEN=0.0.0.0 PUBLIC_HOST=你的域名或服务器IP PUBLIC_PORT=443 bash deploy-xray-reality.sh
+```
 
 ## 运维命令
 
