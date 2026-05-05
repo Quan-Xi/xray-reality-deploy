@@ -6,8 +6,7 @@
 - VLESS
 - REALITY
 - Vision flow：`xtls-rprx-vision`
-- 默认本机监听 `127.0.0.1:10443`
-- 可通过 `PUBLIC_HOST` / `PUBLIC_PORT` 输出公网连接地址，适合前面有 Nginx 443 SNI 分流的场景
+- 运行时选择直连公网端口，或放在 Nginx SNI 分流后面
 - 不创建 HTTP/SOCKS 公网入口
 - 不配置 access log 文件
 - 默认固定安装 Xray-core `v26.3.27`
@@ -20,16 +19,35 @@
 sudo bash deploy-xray-reality.sh
 ```
 
-默认配置适合这种部署结构：
+脚本会提示选择部署模式：
 
 ```text
-proxy.example.com:443 -> Nginx SNI 分流 -> 127.0.0.1:10443 -> Xray REALITY
+1) Direct public listen, no Nginx
+2) Behind Nginx SNI stream forwarding
 ```
 
-自定义本机监听端口、公网地址或伪装站点：
+模式 1 是直连模式，不需要 Nginx：
+
+```text
+客户端 -> 服务器公网 443 -> Xray REALITY
+```
+
+模式 2 适合这种部署结构：
+
+```text
+客户端 -> 服务器公网 443 -> Nginx SNI 分流 -> 127.0.0.1:10443 -> Xray REALITY
+```
+
+非交互直连部署：
 
 ```bash
-sudo PORT=10443 LISTEN=127.0.0.1 PUBLIC_HOST=proxy.example.com PUBLIC_PORT=443 SNI=www.microsoft.com DEST=www.microsoft.com:443 bash deploy-xray-reality.sh
+sudo DEPLOY_MODE=direct PUBLIC_HOST=你的域名或服务器IP bash deploy-xray-reality.sh
+```
+
+非交互 Nginx 分流部署：
+
+```bash
+sudo DEPLOY_MODE=nginx PUBLIC_HOST=proxy.example.com SNI=www.microsoft.com DEST=www.microsoft.com:443 bash deploy-xray-reality.sh
 ```
 
 固定其他 Xray 版本：
@@ -53,10 +71,21 @@ sudo XRAY_VERSION=v26.3.27 bash deploy-xray-reality.sh
 
 `SNI`、`PublicKey`、`ShortID`、`UUID` 必须和脚本输出完全一致。
 
-如果不使用 Nginx 分流、想让 Xray 直接监听公网端口，可以显式覆盖：
+## 参数说明
+
+- `DEPLOY_MODE=direct`：Xray 直接监听公网端口，默认 `0.0.0.0:443`。
+- `DEPLOY_MODE=nginx`：Xray 只监听本机端口，默认 `127.0.0.1:10443`，由 Nginx 转发公网 `443`。
+- `PUBLIC_HOST`：客户端连接的地址，例如域名或服务器 IP。
+- `PUBLIC_PORT`：客户端连接的公网端口，默认 `443`。
+- `SNI`：REALITY 伪装站点，默认 `www.microsoft.com`。
+- `DEST`：REALITY 回落目标，默认 `${SNI}:443`。
+
+使用 Nginx SNI 分流时，Nginx `ssl_preread` 应该匹配的是 `SNI` 的值，不是 `PUBLIC_HOST`。例如 `SNI=www.microsoft.com` 时，Nginx 的分流规则应匹配 `www.microsoft.com`，再转发到 `127.0.0.1:10443`。
+
+如果需要覆盖监听地址或端口，可以显式传入：
 
 ```bash
-sudo PORT=443 LISTEN=0.0.0.0 PUBLIC_HOST=你的域名或服务器IP PUBLIC_PORT=443 bash deploy-xray-reality.sh
+sudo DEPLOY_MODE=direct PORT=8443 LISTEN=0.0.0.0 PUBLIC_HOST=你的域名或服务器IP PUBLIC_PORT=8443 bash deploy-xray-reality.sh
 ```
 
 ## 运维命令
